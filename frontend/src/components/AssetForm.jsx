@@ -233,7 +233,7 @@ export default function AssetForm() {
     if (!form.asset_name.trim()) errors.push("Asset Name is required");
     if (!form.category.trim()) errors.push("Category is required");
     if (!form.institute.trim()) errors.push("Institute is required");
-    if (!form.department.trim()) errors.push("Department is required");
+    //if (!form.department.trim()) errors.push("Department is required");
     if (needsFaculty && !form.assigned_faculty_name.trim()) {
       errors.push("Assigned Faculty Name is required for 'individual'");
     }
@@ -469,180 +469,56 @@ export default function AssetForm() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label htmlFor="institute" className="block text-sm mb-1">Institute</label>
-            <div className="flex gap-2 items-center">
-              <select
-                id="institute"
-                className="w-full border rounded px-3 py-2"
-                name="institute"
-                value={form.institute}
-                onChange={onInstituteChange}
-                required
-              >
-                <option value="">Select Institute...</option>
-                {instituteOptions.map((opt) => (
-                  <option key={opt} value={opt}>{opt}</option>
-                ))}
-              </select>
-              <button
-                type="button"
-                onClick={() => setShowAddInstitute(true)}
-                className="px-3 text-indigo-600 border border-indigo-400 rounded hover:bg-indigo-50"
-                tabIndex={-1}
-                title="Add new institute"
-                style={{ fontWeight: "bold", fontSize: 18 }}
-              >
-                +
-              </button>
-            </div>
-            {showAddInstitute && (
-              <form onSubmit={onAddNewInstitute} className="flex gap-2 mt-2" noValidate>
-                <input
-                  className="flex-1 border rounded px-3 py-2"
-                  value={newInstitute}
-                  placeholder="Enter new institute"
-                  onChange={e => setNewInstitute(e.target.value)}
-                  autoFocus
-                  required
-                />
-                <button
-                  type="submit"
-                  className="px-3 py-1 rounded bg-emerald-600 text-white hover:bg-emerald-700 text-sm"
-                >
-                  Add
-                </button>
-                <button
-                  type="button"
-                  onClick={onCancelAddInstitute}
-                  className="px-3 py-1 rounded bg-gray-200 hover:bg-gray-300 text-sm"
-                  tabIndex={-1}
-                >
-                  Cancel
-                </button>
-              </form>
-            )}
+            <select
+              id="institute"
+              className="w-full border rounded px-3 py-2"
+              name="institute"
+              value={form.institute}
+              onChange={onInstituteChange}
+              required
+            >
+              <option value="">Select Institute...</option>
+              {instituteOptions.map((opt) => (
+                <option key={opt} value={opt}>{opt}</option>
+              ))}
+            </select>
           </div>
-
           <div>
             <label htmlFor="department" className="block text-sm mb-1">Department</label>
-            <div className="flex gap-2 items-center">
-              <select
-                id="department"
-                className="w-full border rounded px-3 py-2"
-                name="department"
-                value={form.department}
-                onChange={onDepartmentChange}
-                required
-              >
-                <option value="">Select Department...</option>
-                {departmentOptions.map((opt) => (
-                  <option key={opt} value={opt}>{opt}</option>
-                ))}
-              </select>
-              <button
-                type="button"
-                onClick={() => setShowAddDepartment(true)}
-                className="px-3 text-indigo-600 border border-indigo-400 rounded hover:bg-indigo-50"
-                tabIndex={-1}
-                title="Add new department"
-                style={{ fontWeight: "bold", fontSize: 18 }}
-              >
-                +
-              </button>
-            </div>
-            {showAddDepartment && (
-              <form onSubmit={onAddNewDepartment} className="flex gap-2 mt-2" noValidate>
-                <input
-                  className="flex-1 border rounded px-3 py-2"
-                  value={newDepartment}
-                  placeholder="Enter new department"
-                  onChange={e => setNewDepartment(e.target.value)}
-                  autoFocus
-                  required
-                />
-                <button
-                  type="submit"
-                  className="px-3 py-1 rounded bg-emerald-600 text-white hover:bg-emerald-700 text-sm"
-                >
-                  Add
-                </button>
-                <button
-                  type="button"
-                  onClick={onCancelAddDepartment}
-                  className="px-3 py-1 rounded bg-gray-200 hover:bg-gray-300 text-sm"
-                  tabIndex={-1}
-                >
-                  Cancel
-                </button>
-              </form>
-            )}
+            <select
+              id="department"
+              className="w-full border rounded px-3 py-2"
+              name="department"
+              value={form.department}
+              onChange={onDepartmentChange}
+              
+            >
+              <option value="">Select Department...</option>
+              {departmentOptions.map((opt) => (
+                <option key={opt} value={opt}>{opt}</option>
+              ))}
+            </select>
           </div>
         </div>
 
-        {/* Second row: Asset Name and Category */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label htmlFor="asset_name" className="block text-sm mb-1">Asset Name</label>
-            <div className="flex gap-2 items-center">
-              <select
-                id="asset_name"
-                className="w-full border rounded px-3 py-2"
-                name="asset_name"
-                value={form.asset_name && form.category ? `${form.asset_name}:${form.category}` : ""}
-                onChange={onDropdownChange}
-                required
-              >
-                <option value="">Select Asset Name...</option>
-                {assetNames.map((pair) => {
-                  const [name] = (pair || "").split(":");
-                  return <option key={pair} value={pair}>{name}</option>;
-                })}
-              </select>
-              <button
-                type="button"
-                onClick={onAddCustomAsset}
-                className="px-3 text-indigo-600 border border-indigo-400 rounded hover:bg-indigo-50"
-                tabIndex={-1}
-                title="Add new asset name"
-                style={{ fontWeight: "bold", fontSize: 18 }}
-              >
-                +
-              </button>
-            </div>
-            {showAddAsset && (
-              <form onSubmit={onAddNewAssetToList} className="flex flex-col md:flex-row gap-2 mt-2" noValidate>
-                <input
-                  className="flex-1 border rounded px-3 py-2"
-                  value={newAssetName}
-                  placeholder="Enter new asset name"
-                  onChange={(e) => setNewAssetName(e.target.value)}
-                  autoFocus
-                  required
-                />
-                <input
-                  className="flex-1 border rounded px-3 py-2"
-                  value={newAssetCategory}
-                  placeholder="Enter category (e.g., Electronics)"
-                  onChange={(e) => setNewAssetCategory(e.target.value)}
-                  required
-                />
-                <button
-                  type="submit"
-                  className="px-3 py-1 rounded bg-emerald-600 text-white hover:bg-emerald-700 text-sm"
-                >
-                  Add
-                </button>
-                <button
-                  type="button"
-                  onClick={onCancelAddAsset}
-                  className="px-3 py-1 rounded bg-gray-200 hover:bg-gray-300 text-sm"
-                  tabIndex={-1}
-                >
-                  Cancel
-                </button>
-              </form>
-            )}
+            <select
+              id="asset_name"
+              className="w-full border rounded px-3 py-2"
+              name="asset_name"
+              value={form.asset_name && form.category ? `${form.asset_name}:${form.category}` : ""}
+              onChange={onDropdownChange}
+              required
+            >
+              <option value="">Select Asset Name...</option>
+              {assetNames.map((pair) => {
+                const [name] = (pair || "").split(":");
+                return <option key={pair} value={pair}>{name}</option>;
+              })}
+            </select>
           </div>
-
           <div>
             <label htmlFor="category" className="block text-sm mb-1">Category</label>
             <input
@@ -657,6 +533,7 @@ export default function AssetForm() {
             />
           </div>
         </div>
+
 
         {/* Quantity */}
         <div className="mt-2">

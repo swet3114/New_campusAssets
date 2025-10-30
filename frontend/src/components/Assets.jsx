@@ -448,7 +448,7 @@ export default function Assets() {
       const safeName = (asset.asset_name || "ASSET")
         .replace(/[^A-Za-z0-9_-]+/g, "_")
         .slice(0, 40) || "ASSET";
-      a.download = `${safeName}_${serial}_${(asset.registration_number || "REG").replace(/[^\w-]+/g, "_")}.png`;
+      a.download = `${serial}_${(asset.registration_number || "REG").replace(/[^\w-]+/g, "_")}.png`;
       document.body.appendChild(a);
       a.click();
       a.remove();

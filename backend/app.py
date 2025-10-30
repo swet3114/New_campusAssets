@@ -309,7 +309,7 @@ def sanitize_token(s: str) -> str:
     return SAFE_TOKEN_RE.sub("", base)[:48] or "ASSET"
 
 def reg_prefix_from_asset(asset_name: str) -> str:
-    name = sanitize_token(asset_name)
+    name = sanitize_token(asset_name)[:6]
     ts = datetime.now().strftime("%Y%m%d%H%M%S")
     return f"{name}/{ts}"
 
@@ -359,7 +359,7 @@ def create_assets_bulk():
     if not asset_name: missing.append("asset_name")
     if not category: missing.append("category")
     if not institute: missing.append("institute")
-    if not department: missing.append("department")
+    #if not department: missing.append("department")
     if assigned_type not in ("individual", "general"):
         return jsonify({"error": "assigned_type must be 'individual' or 'general'"}), 400
     if assigned_type == "individual" and not assigned_faculty_name:
@@ -1298,6 +1298,15 @@ def get_asset_stats():
             {'$group': {'_id': '$assigned_type', 'count': {'$sum': 1}}},
             {'$sort': {'count': -1}}
         ]))
+
+
+        # Assets grouped by asset_name (e.g., Chair, Table, etc.)
+        by_asset = list(assets.aggregate([
+            {'$match': match_stage},
+            {'$group': {'_id': '$asset_name', 'count': {'$sum': 1}}},
+            {'$sort': {'count': -1}}
+        ]))
+
         
         # 9. SIMPLIFIED: Total assets added per date (no single/bulk breakdown)
         try:
@@ -1362,19 +1371,10 @@ def get_asset_stats():
         
         return jsonify({
             'success': True,
-            'total_assets': total_assets,
             'by_category': by_category,
-            'by_status': by_status,
-            'by_department': by_department,
-            'by_institute': by_institute,
-            'by_location': by_location,
-            'by_assigned_type': by_assigned_type,  # Now only single assets
-            'verified_stats': {
-                'verified': verified_count,
-                'unverified': unverified_count
-            },
-            'assets_by_date': assets_by_date  # Now simplified - total per date
+            'by_asset': by_asset
         }), 200
+
         
     except Exception as e:
         print(f"Error fetching stats: {e}")

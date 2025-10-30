@@ -7,7 +7,7 @@ const API = "http://localhost:5000";
 
 const STATUS_OPTIONS = ["active", "inactive", "repair", "scrape", "damage"];
 const ASSIGNED_TYPE_OPTIONS = ["general", "individual"];
-const REG_RE = /^[A-Za-z0-9_-]+\/\d{14}\/\d{5}$/;
+const REG_RE = /^[A-Za-z0-9_-]+\/\d{14}\/\d{5,15}$/;
 const BULK_RE = /^[A-Z]{2,20}\/[A-Z]{2,20}\/\d{14}\/\d{4}$/;
 
 export default function Scan() {
@@ -459,6 +459,7 @@ export default function Scan() {
                   name="assign_date"
                   value={form.assign_date}
                   onChange={onChange}
+                  required
                 />
               </div>
               <div>
@@ -516,7 +517,6 @@ export default function Scan() {
                   name="assigned_faculty_name"
                   value={form.assigned_faculty_name}
                   onChange={onChange}
-                  placeholder="Dr. A B"
                   disabled={!needsFaculty}
                   required={needsFaculty}
                 />
@@ -525,12 +525,16 @@ export default function Scan() {
 
 
               <div>
-                <label className="block text-sm mb-1">Employee Code</label>
+                <label className="block text-sm mb-1">
+                  Employee Code {needsFaculty ? "" : "(disabled)"}
+                </label>
                 <input
                   className="w-full border rounded px-3 py-2"
                   name="employee_code"
                   value={form.employee_code}
                   onChange={onChange}
+                  disabled={!needsFaculty}
+                  required={needsFaculty}
                 />
               </div>
               <div>
@@ -563,6 +567,7 @@ export default function Scan() {
                     name="verified"
                     checked={!!form.verified}
                     onChange={onChange}
+                    required
                   />
                   Verified
                 </label>
@@ -574,6 +579,7 @@ export default function Scan() {
                   name="verified_by"
                   value={form.verified_by}
                   onChange={onChange}
+                  required
                 />
               </div>
             </div>

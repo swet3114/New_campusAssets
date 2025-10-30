@@ -95,6 +95,14 @@ export default function Navbar() {
               </NavLink>
 
               <NavLink
+                to="/masterdatamanager"
+                className={({ isActive }) => `${linkBase} ${isActive ? activeClass : ""}`}
+                onClick={() => setOpen(false)}
+              >
+                Manage Master Data
+              </NavLink>
+
+              <NavLink
                 to="/assets/new"
                 className={({ isActive }) => `${linkBase} ${isActive ? activeClass : ""}`}
                 onClick={() => setOpen(false)}
@@ -102,7 +110,9 @@ export default function Navbar() {
                 Add Assets
               </NavLink>
 
-              {/* NEW: Add Bulk Assets */}
+              
+
+              {/* NEW: Add Bulk Assets 
               <NavLink
                 to="/bulkasset"
                 className={({ isActive }) => `${linkBase} ${isActive ? activeClass : ""}`}
@@ -110,6 +120,7 @@ export default function Navbar() {
               >
                 Add Bulk Assets
               </NavLink>
+              */}
 
               <NavLink
                 to="/assets"
@@ -119,7 +130,7 @@ export default function Navbar() {
                 View Inventory
               </NavLink>
 
-              {/* NEW: View Bulk Inventory */}
+              {/* NEW: View Bulk Inventory 
               <NavLink
                 to="/bulk-inventory"
                 className={({ isActive }) => `${linkBase} ${isActive ? activeClass : ""}`}
@@ -127,6 +138,8 @@ export default function Navbar() {
               >
                 View Bulk Inventory
               </NavLink>
+
+              */}
               
 
               <NavLink
