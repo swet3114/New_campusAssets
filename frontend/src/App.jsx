@@ -13,6 +13,7 @@ import Profile from "./components/Profile";
 // import BulkInventory from "./components/BulkInventory";
 import GraphView from "./components/GraphView";
 import MasterDataManager from "./components/MasterDataManager";
+import ManageUser from "./components/ManageUser";
 
 // NEW: History Logs page (create this file)
 import HistoryLogs from "./components/HistoryLogs";
@@ -93,6 +94,19 @@ export default function App() {
               <ProtectedLayout>
                 <RoleGate allow={["Super_Admin", "Admin"]}>
                   <AssetForm />
+                </RoleGate>
+              </ProtectedLayout>
+            </Protected>
+          }
+        />
+
+        <Route
+          path="/manage-users"
+          element={
+            <Protected>
+              <ProtectedLayout>
+                <RoleGate allow={["Super_Admin"]}>
+                  <ManageUser />
                 </RoleGate>
               </ProtectedLayout>
             </Protected>

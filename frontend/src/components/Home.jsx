@@ -119,7 +119,7 @@ export default function Home() {
               </svg>
               See Graphs
             </Link>
-          
+
         </div>
       </section>
 

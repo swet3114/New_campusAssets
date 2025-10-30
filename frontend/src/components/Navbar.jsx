@@ -34,6 +34,8 @@ export default function Navbar() {
           campusAssets
         </Link>
 
+        
+
         {/* Right: actions (Profile only) */}
         <div className="flex items-center gap-2">
           <button
@@ -42,6 +44,15 @@ export default function Navbar() {
             title="My Profile"
           >
             Profile
+          </button>
+
+
+          <button
+            onClick={() => navigate("/manage-users")}
+            className="px-3 py-1.5 rounded border border-gray-200 text-gray-800 hover:bg-gray-100"
+            
+          >
+            Manage Users
           </button>
         </div>
       </div>

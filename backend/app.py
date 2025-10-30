@@ -1647,6 +1647,92 @@ def delete_department(value):
     info.update_one(MASTER_DOC_FILTER, {"$pull": {"Departments": value}})
     return jsonify({"ok": True, "deleted": value}), 200
 
+# Correct: get the collection object from the database
+def get_users_collection():
+    return db[USER_COLLECTION]
+
+
+from bson import ObjectId
+
+def mongo_to_json(doc):
+    """Convert _id to string in a MongoDB document or list."""
+    if isinstance(doc, list):
+        return [mongo_to_json(d) for d in doc]
+    doc = dict(doc)
+    if '_id' in doc and isinstance(doc['_id'], ObjectId):
+        doc['_id'] = str(doc['_id'])
+    return doc    
+
+
+@app.route('/api/users', methods=['GET'])
+@require_role('Super_Admin')
+def list_users():
+    users_collection = db[USER_COLLECTION]
+    role = request.args.get('role')
+    query = {}
+    if role:
+        query['role'] = role
+    users = list(users_collection.find(query, {'password': 0}))
+    users = mongo_to_json(users)            # <-- Fix: Make _id serializable
+    counts = list(users_collection.aggregate([
+        {'$group': {'_id': '$role', 'count': {'$sum': 1}}}
+    ]))
+    # Optionally process counts for _id as string, too.
+    for c in counts:
+        c['_id'] = str(c['_id'])
+    return jsonify({
+        'success': True,
+        'users': users,
+        'counts': counts
+    })
+
+
+from flask import jsonify
+
+@app.route('/api/users/<user_id>', methods=['DELETE', 'OPTIONS'])
+def delete_user(user_id):
+    if request.method == 'OPTIONS':
+        return ('', 204)
+    users_collection = db[USER_COLLECTION]
+    try:
+        result = users_collection.delete_one({'_id': ObjectId(user_id)})
+        if result.deleted_count == 1:
+            return jsonify({'success': True}), 200
+        else:
+            return jsonify({'success': False, 'error': 'User not found'}), 404
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+    
+from werkzeug.security import generate_password_hash, check_password_hash
+
+@app.route('/api/users/<user_id>/reset-password', methods=['POST', 'OPTIONS'])
+def reset_user_password(user_id):
+    if request.method == 'OPTIONS':
+        return ('', 204)
+
+    new_pw = request.json.get('password')
+    if not new_pw or len(new_pw) < 5:
+        return jsonify({'success': False, 'error': 'Invalid password'}), 400
+
+    # ✅ Use the same hash function as signup
+    try:
+        hashed_pw = hash_password(new_pw)   # same as used in signup()
+    except Exception as e:
+        return jsonify({'success': False, 'error': f'Password hashing failed: {str(e)}'}), 500
+
+    users_collection = db[USER_COLLECTION]
+    result = users_collection.update_one(
+        {'_id': ObjectId(user_id)},
+        {'$set': {'password': hashed_pw}}
+    )
+
+    if result.modified_count == 1:
+        return jsonify({'success': True, 'message': 'Password updated successfully'})
+    else:
+        return jsonify({'success': False, 'error': 'User not found'}), 404
+
+
+
 
 
 
