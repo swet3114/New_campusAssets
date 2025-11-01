@@ -42,18 +42,32 @@ export default function Home() {
 
           <Link
             to="/masterdatamanager"
-            className="rounded-xl bg-indigo-500 text-white px-5 py-2.5 shadow-md hover:bg-indigo-600 hover:shadow-lg transition"
+            className="rounded-xl bg-indigo-500 text-white px-5 py-2.5 shadow-md hover:bg-indigo-600 hover:shadow-lg transition flex items-center gap-2"
+            title="Manage master lists (institutes, departments, asset names)"
           >
+            {/* Settings / Cog icon */}
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <ellipse cx="12" cy="5" rx="7" ry="3" strokeWidth="2" />
+              <path strokeWidth="2" d="M5 5v6c0 1.66 3.134 3 7 3s7-1.34 7-3V5" />
+              <path strokeWidth="2" d="M5 11v6c0 1.66 3.134 3 7 3s7-1.34 7-3v-6" />
+            </svg>
+
             Manage Master Data
           </Link>
 
+
           <Link
             to="/assets/new"
-            className="rounded-xl bg-indigo-500 text-white px-5 py-2.5 shadow-md hover:bg-indigo-600 hover:shadow-lg transition"
+            className="rounded-xl bg-indigo-500 text-white px-5 py-2.5 shadow-md hover:bg-indigo-600 hover:shadow-lg transition flex items-center gap-2"
+            title="Create a new asset"
           >
+            {/* Plus circle icon */}
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                d="M12 9v6m3-3H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
             Add Asset
           </Link>
-
 
           {/*
           <Link
@@ -67,14 +81,28 @@ export default function Home() {
 
           <Link
             to="/scan"
-            className="rounded-xl bg-sky-500 text-white px-5 py-2.5 shadow-md hover:bg-sky-600 hover:shadow-lg transition"
+            className="rounded-xl bg-sky-500 text-white px-5 py-2.5 shadow-md hover:bg-sky-600 hover:shadow-lg transition flex items-center gap-2"
+            title="Scan a QR to view or update"
           >
+            {/* QR code icon */}
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+                d="M4 7V5h3M20 7V5h-3M4 17v2h3M20 17v2h-3" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+                d="M9 9h3v3H9zM13 9h2v2h-2zM9 13h2v2H9zM13 13h3v3h-3z" />
+            </svg>
             Scan QR
           </Link>
           <Link
             to="/assets"
-            className="rounded-xl bg-gray-600 text-white px-5 py-2.5 shadow-md hover:bg-gray-700 hover:shadow-lg transition"
+            className="rounded-xl bg-gray-600 text-white px-5 py-2.5 shadow-md hover:bg-gray-700 hover:shadow-lg transition flex items-center gap-2"
+            title="View and filter inventory"
           >
+            {/* List/bulleted icon */}
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01" />
+            </svg>
             View Inventory
           </Link>
 
@@ -90,12 +118,16 @@ export default function Home() {
 
           <Link
             to="/admin/history"
-            className="rounded-xl bg-amber-500 text-white px-5 py-2.5 shadow-md hover:bg-amber-600 hover:shadow-lg transition"
+            className="rounded-xl bg-amber-500 text-white px-5 py-2.5 shadow-md hover:bg-amber-600 hover:shadow-lg transition flex items-center gap-2"
             title="View system-wide audit history"
           >
+            {/* Clock/history icon */}
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
             History Logs
           </Link>
-
           {/* See Graphs Button - Only visible for Super_Admin and Admin */}
           
             <Link
@@ -117,7 +149,7 @@ export default function Home() {
                   d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
                 />
               </svg>
-              See Graphs
+              View Graphs
             </Link>
 
         </div>

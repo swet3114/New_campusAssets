@@ -29,9 +29,17 @@ export default function Navbar() {
           </svg>
         </button>
 
-        {/* Center: brand */}
-        <Link to="/" className="text-xl font-semibold tracking-tight">
-          campusAssets
+        <Link
+          to="/"
+          className="absolute left-1/2 transform -translate-x-1/2 inline-flex items-center text-xl font-semibold tracking-tight"
+          title="Campus Asset"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-indigo-600" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 7l9-4 9 4-9 4-9-4z" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 7v10l9 4 9-4V7" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14.5 12.5l4 4M16 14a2 2 0 11-4 0 2 2 0 014 0z" />
+          </svg>
+          <span className="ml-3">Campus Asset</span>
         </Link>
 
         
@@ -40,7 +48,9 @@ export default function Navbar() {
         <div className="flex items-center gap-2">
           <button
             onClick={() => navigate("/profile")}
-            className="px-3 py-1.5 rounded border border-gray-200 text-gray-800 hover:bg-gray-100"
+            //className="px-3 py-1.5 rounded border border-gray-200 text-gray-800 hover:bg-gray-100"
+            className="px-3 py-1.5 rounded border border-sky-500 text-sky-600 hover:bg-sky-50"
+
             title="My Profile"
           >
             Profile
@@ -49,8 +59,9 @@ export default function Navbar() {
 
           <button
             onClick={() => navigate("/manage-users")}
-            className="px-3 py-1.5 rounded border border-gray-200 text-gray-800 hover:bg-gray-100"
-            
+            //className="px-3 py-1.5 rounded border border-gray-200 text-gray-800 hover:bg-gray-100"
+            className="px-3 py-1.5 rounded border border-blue-500 text-blue-600 hover:bg-blue-50"
+
           >
             Manage Users
           </button>
@@ -172,7 +183,7 @@ export default function Navbar() {
                 className={({ isActive }) => `${linkBase} ${isActive ? activeClass : ""}`}
                 onClick={() => setOpen(false)}
               >
-                See Graphs
+                View Graphs
               </NavLink>
             </div>
           </nav>

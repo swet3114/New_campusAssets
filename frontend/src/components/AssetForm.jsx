@@ -5,55 +5,61 @@ import { jsPDF } from "jspdf";
 import QRCodeLib from "qrcode";
 
 const API = "http://localhost:5000";
-const STATUS_OPTIONS = ["active", "inactive", "repair", "scrape", "damage"];
+const STATUS_OPTIONS = ["Active", "Inactive", "Repair", "Scrape", "Damage"];
 const ASSIGNED_TYPE_OPTIONS = ["general", "individual"];
 
 export default function AssetForm() {
   const [form, setForm] = useState({
     asset_name: "",
     category: "",
-    location: "",
+    institute: "",
+    department: "",
+    quantity: 1,
+    // core detail
     assign_date: "",
     status: "",
     desc: "",
-    institute: "",
-    department: "",
     assigned_type: "",
     assigned_faculty_name: "",
     employee_code: "",
     bill_no: "",
-    quantity: 1,
+    // Row 1
+    size_lxwxh: "",
+    company_model: "",
+    it_serial_no: "",
+    dead_stock_no: "",
+    // Row 2
+    vendor_name: "",
+    purchase_date: "",
+    rate_per_unit: "",
+    po_no: "",
+    // Row 3
+    room_no: "",
+    building_name: "",
+    // Row 5
+    remarks: "",
   });
 
-  // Dynamic dropdowns (fetched from backend)
-  const [assetNames, setAssetNames] = useState([]); // ["Mouse:Electronics", ...]
-  const [showAddAsset, setShowAddAsset] = useState(false);
-  const [newAssetName, setNewAssetName] = useState("");
-  const [newAssetCategory, setNewAssetCategory] = useState("");
-
+  // Dynamic dropdowns (fetch only; no add buttons)
+  const [assetNames, setAssetNames] = useState([]);
   const [instituteOptions, setInstituteOptions] = useState([]);
-  const [showAddInstitute, setShowAddInstitute] = useState(false);
-  const [newInstitute, setNewInstitute] = useState("");
-
   const [departmentOptions, setDepartmentOptions] = useState([]);
-  const [showAddDepartment, setShowAddDepartment] = useState(false);
-  const [newDepartment, setNewDepartment] = useState("");
 
   const [statusMsg, setStatusMsg] = useState(null);
   const [created, setCreated] = useState([]);
   const [nextSerial, setNextSerial] = useState(null);
+
   const [generateReport, setGenerateReport] = useState(false);
   const [generateQrPdf, setGenerateQrPdf] = useState(false);
   const [assetLink, setAssetLink] = useState(false);
 
-  // Fetch all dropdown options on mount
   useEffect(() => {
     async function fetchDropdowns() {
       try {
         const [an, ins, dep] = await Promise.all([
-          fetch(`${API}/api/setup/asset-names`, { credentials: "include" }).then(r => r.json()),
-          fetch(`${API}/api/setup/institutes`, { credentials: "include" }).then(r => r.json()),
-          fetch(`${API}/api/setup/departments`, { credentials: "include" }).then(r => r.json())
+          fetch(`${API}/api/setup/asset-names`, { credentials: "include" }).then((r) => r.json()),
+          fetch(`${API}/api/setup/institutes`, { credentials: "include" }).then((r) => r.json()),
+          fetch(`${API}/api/setup/departments`, { credentials: "include" }).then((r) => r.json()),
         ]);
         setAssetNames(Array.isArray(an) ? an : []);
         setInstituteOptions(Array.isArray(ins) ? ins : []);
@@ -80,10 +86,9 @@ export default function AssetForm() {
 
   const needsFaculty = useMemo(() => form.assigned_type === "individual", [form.assigned_type]);
 
-  // --- Asset Name dropdown and add ---
-  // Asset names come as "Name:Category". Split to update both fields.
-  const onDropdownChange = (e) => {
-    const pair = e.target.value; // "Mouse:Electronics"
+  // Asset name dropdown – parse "Name:Category"
+  const onAssetPairChange = (e) => {
+    const pair = e.target.value || "";
     if (!pair) {
       setForm((f) => ({ ...f, asset_name: "", category: "" }));
       return;
@@ -92,108 +97,14 @@ export default function AssetForm() {
     setForm((f) => ({ ...f, asset_name, category }));
   };
 
-  const onAddCustomAsset = () => { 
-    setShowAddAsset(true); 
-    setNewAssetName(""); 
-    setNewAssetCategory(""); 
-  };
+  // Institute/Department changes (no add logic)
+  const onInstituteChange = (e) => setForm((f) => ({ ...f, institute: e.target.value }));
+  const onDepartmentChange = (e) => setForm((f) => ({ ...f, department: e.target.value }));
 
-  // Persist asset+category to master then refresh options and set form
-  const onAddNewAssetToList = async (e) => {
-    e.preventDefault();
-    const name = newAssetName.trim();
-    const category = newAssetCategory.trim();
-    if (!name || !category) return;
-    try {
-      const res = await fetch(`${API}/api/setup/asset-names`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ name, category }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to add asset");
-
-      const an = await fetch(`${API}/api/setup/asset-names`, { credentials: "include" }).then(r => r.json());
-      setAssetNames(Array.isArray(an) ? an : []);
-      setForm((f) => ({ ...f, asset_name: name, category }));
-      setShowAddAsset(false);
-      setNewAssetName("");
-      setNewAssetCategory("");
-    } catch (err) {
-      setStatusMsg({ ok: false, msg: err.message || "Failed to add asset" });
-    }
-  };
-
-  const onCancelAddAsset = () => { 
-    setShowAddAsset(false); 
-    setNewAssetName(""); 
-    setNewAssetCategory(""); 
-  };
-
-  // Institute
-  const onInstituteChange = (e) => { setForm((f) => ({ ...f, institute: e.target.value })); };
-
-  const onAddNewInstitute = async (e) => {
-    e.preventDefault();
-    const name = newInstitute.trim();
-    if (!name) return;
-    try {
-      const res = await fetch(`${API}/api/setup/institutes`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ name }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to add institute");
-
-      const ins = await fetch(`${API}/api/setup/institutes`, { credentials: "include" }).then(r => r.json());
-      setInstituteOptions(Array.isArray(ins) ? ins : []);
-      setForm((f) => ({ ...f, institute: name }));
-      setShowAddInstitute(false);
-      setNewInstitute("");
-    } catch (err) {
-      setStatusMsg({ ok: false, msg: err.message || "Failed to add institute" });
-    }
-  };
-
-  const onCancelAddInstitute = () => { setShowAddInstitute(false); setNewInstitute(""); };
-
-  // Department
-  const onDepartmentChange = (e) => { setForm((f) => ({ ...f, department: e.target.value })); };
-
-  const onAddNewDepartment = async (e) => {
-    e.preventDefault();
-    const name = newDepartment.trim();
-    if (!name) return;
-    try {
-      const res = await fetch(`${API}/api/setup/departments`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ name }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to add department");
-
-      const dep = await fetch(`${API}/api/setup/departments`, { credentials: "include" }).then(r => r.json());
-      setDepartmentOptions(Array.isArray(dep) ? dep : []);
-      setForm((f) => ({ ...f, department: name }));
-      setShowAddDepartment(false);
-      setNewDepartment("");
-    } catch (err) {
-      setStatusMsg({ ok: false, msg: err.message || "Failed to add department" });
-    }
-  };
-
-  const onCancelAddDepartment = () => { setShowAddDepartment(false); setNewDepartment(""); };
-
-  // -------------------
   // Generic onChange
-  // -------------------
   const onChange = (e) => {
     const { name, value, type, checked } = e.target;
+
     if (name === "generateReport") {
       setGenerateReport(checked);
       return;
@@ -202,6 +113,7 @@ export default function AssetForm() {
       setGenerateQrPdf(checked);
       return;
     }
+
     setForm((f) => {
       if (name === "quantity") {
         const q = Math.max(1, parseInt(value || "1", 10));
@@ -219,55 +131,73 @@ export default function AssetForm() {
         };
       }
       if (name === "category") {
-        return f; // read-only derived field
+        return f; // derived
+      }
+      if (name === "rate_per_unit") {
+        const onlyDigitsDot = value.replace(/[^\d.]/g, "");
+        return { ...f, rate_per_unit: onlyDigitsDot };
       }
       return { ...f, [name]: value };
     });
   };
 
-  // -------------------
   // Validation
-  // -------------------
   const validate = () => {
     const errors = [];
+    if (!form.institute.trim()) errors.push("Institute is required");
     if (!form.asset_name.trim()) errors.push("Asset Name is required");
     if (!form.category.trim()) errors.push("Category is required");
-    if (!form.institute.trim()) errors.push("Institute is required");
-    //if (!form.department.trim()) errors.push("Department is required");
-    if (needsFaculty && !form.assigned_faculty_name.trim()) {
-      errors.push("Assigned Faculty Name is required for 'individual'");
-    }
-    if (needsFaculty && !form.employee_code.trim()) {
-      errors.push("Employee Code is required for 'individual'");
-    }
     if (form.quantity < 1) errors.push("Quantity must be at least 1");
+
+    if (assetLink) {
+      if (!form.status.trim()) errors.push("Status is required");
+      //if (!form.bill_no.trim()) errors.push("Bill No is required");
+      if (!form.purchase_date.trim()) errors.push("Date of Purchase is required");
+      if (!form.room_no.trim()) errors.push("Room No. / Location (short) is required");
+      if (!form.assigned_type.trim()) errors.push("Assigned Type is required");
+      if (needsFaculty && !form.assigned_faculty_name.trim()) {
+        errors.push("Assigned To (Employee Name) is required for 'individual'");
+      }
+      if (needsFaculty && !form.employee_code.trim()) {
+        errors.push("Assigned To (Employee Code) is required for 'individual'");
+      }
+      if (!form.assign_date.trim()) errors.push("Assign Date is required");
+    }
     return errors;
   };
 
-  // -------------------
   // Excel export
-  // -------------------
   const generateExcelForAssets = (assets) => {
     if (!assets || !assets.length) return;
     const ws = XLSX.utils.json_to_sheet(
-      assets.map(a => ({
+      assets.map((a) => ({
         "Serial No": a.serial_no,
         "Registration #": a.registration_number,
         "Asset Name": a.asset_name,
-        "Category": a.category,
-        "Location": a.location,
+        Category: a.category,
         "Assign Date": a.assign_date,
-        "Status": a.status,
-        "Desc": a.desc,
+        Status: a.status,
+        Desc: a.desc,
         "Verification Date": a.verification_date || "",
-        "Verified": a.verified ? "Yes" : "No",
+        Verified: a.verified ? "Yes" : "No",
         "Verified By": a.verified_by || "",
-        "Institute": a.institute,
-        "Department": a.department,
+        Institute: a.institute,
+        Department: a.department,
         "Assigned Type": a.assigned_type,
         "Assigned Faculty": a.assigned_faculty_name,
         "Employee Code": a.employee_code,
         "Bill No": a.bill_no,
+        "Vendor Name": a.vendor_name || "",
+        "Purchase Date": a.purchase_date || "",
+        "Rate Per Unit (Rs)": a.rate_per_unit || "",
+        "PO No": a.po_no || "",
+        "Room No": a.room_no || "",
+        Building: a.building_name || "",
+        "IT Serial No": a.it_serial_no || "",
+        "Dead/Asset/Stock No": a.dead_stock_no || "",
+        "Size (LxWxH)": a.size_lxwxh || "",
+        "Company/Model/No": a.company_model || "",
+        "Remarks": a.remarks || "",
       }))
     );
     const wb = XLSX.utils.book_new();
@@ -275,9 +205,7 @@ export default function AssetForm() {
     XLSX.writeFile(wb, "recent-assets.xlsx");
   };
 
-  // -------------------
-  // QR generation + PDF (jsPDF)
-  // -------------------
+  // QR code helpers
   async function generateQrPng(text, size) {
     try {
       return await QRCodeLib.toDataURL(text, { width: size, margin: 1 });
@@ -289,7 +217,7 @@ export default function AssetForm() {
 
   async function downloadAllQrPdf(rows, sizeOption = "Medium") {
     if (!rows || !rows.length) return;
-    const doc = new jsPDF('p', 'mm', 'a4');
+    const doc = new jsPDF("p", "mm", "a4");
     const marginX = 16;
     const marginY = 20;
     const pageWidth = 210;
@@ -346,19 +274,19 @@ export default function AssetForm() {
       }
       const smallerFontSize = Math.round(labelFontSize * 0.66 * 10) / 10;
       doc.setFontSize(smallerFontSize);
-      const serialWidth = doc.getStringUnitWidth(serialText) * smallerFontSize / doc.internal.scaleFactor;
+      const serialWidth = (doc.getStringUnitWidth(serialText) * smallerFontSize) / doc.internal.scaleFactor;
       const serialX = x + (qrSize - serialWidth) / 2;
       const serialY = y + qrSize + 2;
       doc.text(serialText, serialX, serialY);
-      const label = (qrText && qrText !== "1") ? qrText : "";
+      const label = qrText && qrText !== "1" ? qrText : "";
       const labelLines = label ? doc.splitTextToSize(label, qrSize) : [];
       const lineHeight = smallerFontSize * 0.9;
       const totalLabelHeight = labelLines.length * lineHeight;
       for (let j = 0; j < labelLines.length; j++) {
         const line = labelLines[j];
-        const lineWidth = doc.getStringUnitWidth(line) * smallerFontSize / doc.internal.scaleFactor;
+        const lineWidth = (doc.getStringUnitWidth(line) * smallerFontSize) / doc.internal.scaleFactor;
         const textX = x + (qrSize - lineWidth) / 2;
-        doc.text(line, textX, serialY + ((j + 1) * lineHeight));
+        doc.text(line, textX, serialY + (j + 1) * lineHeight);
       }
       lastRowY = y;
       lastBlockHeight = qrSize + smallerFontSize / 2 + totalLabelHeight;
@@ -369,7 +297,7 @@ export default function AssetForm() {
         x = marginX;
         y += lastBlockHeight + padding + 2;
         if (y + qrSize + totalLabelHeight > pageHeight - marginY) {
-          doc.addPage('a4', 'p');
+          doc.addPage("a4", "p");
           y = marginY;
         }
       } else {
@@ -383,9 +311,7 @@ export default function AssetForm() {
     doc.save(`all_asset_qr_codes_${stamp}.pdf`);
   }
 
-  // -------------------
   // Submit
-  // -------------------
   const onSubmit = async (e) => {
     e.preventDefault();
     setStatusMsg(null);
@@ -397,20 +323,42 @@ export default function AssetForm() {
     }
     try {
       const payload = {
+        // Core
         asset_name: form.asset_name,
         category: form.category,
-        location: form.location,
-        assign_date: form.assign_date,
-        status: form.status,
-        desc: form.desc,
         institute: form.institute,
         department: form.department,
+        quantity: form.quantity,
+
+        // Row 1
+        status: form.status,
+        size_lxwxh: form.size_lxwxh,
+        company_model: form.company_model,
+        it_serial_no: form.it_serial_no,
+        dead_stock_no: form.dead_stock_no,
+
+        // Row 2
+        bill_no: form.bill_no,
+        vendor_name: form.vendor_name,
+        purchase_date: form.purchase_date,
+        rate_per_unit: form.rate_per_unit,
+        po_no: form.po_no,
+
+        // Row 3
+        room_no: form.room_no,
+        building_name: form.building_name,
+
+        // Row 4
         assigned_type: form.assigned_type,
         assigned_faculty_name: needsFaculty ? form.assigned_faculty_name : "",
         employee_code: needsFaculty ? form.employee_code : "",
-        bill_no: form.bill_no,
-        quantity: form.quantity,
+        assign_date: form.assign_date,
+
+        // Extras
+        desc: form.desc,
+        remarks: form.remarks,
       };
+
       const res = await fetch(`${API}/api/assets/bulk`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -423,22 +371,41 @@ export default function AssetForm() {
       } else {
         setStatusMsg({ ok: true, msg: `Created ${data.count} assets` });
         setCreated(Array.isArray(data.items) ? data.items : []);
+
         setForm({
           asset_name: "",
           category: "",
-          location: "",
+          institute: "",
+          department: "",
+          quantity: 1,
+
           assign_date: "",
           status: "active",
           desc: "",
-          institute: "",
-          department: "",
+
           assigned_type: "general",
           assigned_faculty_name: "",
           employee_code: "",
           bill_no: "",
-          quantity: 1,
+
+          size_lxwxh: "",
+          company_model: "",
+          it_serial_no: "",
+          dead_stock_no: "",
+
+          vendor_name: "",
+          purchase_date: "",
+          rate_per_unit: "",
+          po_no: "",
+
+          room_no: "",
+          building_name: "",
+
+          remarks: "",
         });
+
         setNextSerial((prev) => (typeof prev === "number" ? prev + data.count : prev));
+
         if (generateReport && data.items && data.items.length) {
           generateExcelForAssets(data.items);
         }
@@ -452,11 +419,18 @@ export default function AssetForm() {
     }
   };
 
-  // -------------------
-  // UI
-  // -------------------
+  // Top sections still use your Field wrapper to keep them identical
+  const Field = ({ id, label, children }) => (
+    <div className="flex flex-col">
+      <label htmlFor={id} className="block text-sm mb-1">
+        {label}
+      </label>
+      {children}
+    </div>
+  );
+
   return (
-    <div className="max-w-4xl mx-auto p-6 bg-white rounded shadow">
+    <div className="max-w-6xl mx-auto p-6 bg-white rounded shadow">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-xl font-semibold">Add Assets</h2>
         <span className="text-md font-mono text-indigo-700">
@@ -465,10 +439,9 @@ export default function AssetForm() {
       </div>
 
       <form onSubmit={onSubmit} className="space-y-6" noValidate>
-        {/* First row: Institute and Department (dropdown + add) */}
+        {/* Institute / Department (unchanged) */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label htmlFor="institute" className="block text-sm mb-1">Institute</label>
+          <Field id="institute" label="Institute *">
             <select
               id="institute"
               className="w-full border rounded px-3 py-2"
@@ -479,48 +452,53 @@ export default function AssetForm() {
             >
               <option value="">Select Institute...</option>
               {instituteOptions.map((opt) => (
-                <option key={opt} value={opt}>{opt}</option>
+                <option key={opt} value={opt}>
+                  {opt}
+                </option>
               ))}
             </select>
-          </div>
-          <div>
-            <label htmlFor="department" className="block text-sm mb-1">Department</label>
+          </Field>
+          <Field id="department" label="Department ">
             <select
               id="department"
               className="w-full border rounded px-3 py-2"
               name="department"
               value={form.department}
               onChange={onDepartmentChange}
-              
             >
               <option value="">Select Department...</option>
               {departmentOptions.map((opt) => (
-                <option key={opt} value={opt}>{opt}</option>
+                <option key={opt} value={opt}>
+                  {opt}
+                </option>
               ))}
             </select>
-          </div>
+          </Field>
         </div>
 
+        {/* Asset Name / Category (unchanged) */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label htmlFor="asset_name" className="block text-sm mb-1">Asset Name</label>
+          <Field id="asset_name" label="Asset Name *">
             <select
               id="asset_name"
               className="w-full border rounded px-3 py-2"
               name="asset_name"
               value={form.asset_name && form.category ? `${form.asset_name}:${form.category}` : ""}
-              onChange={onDropdownChange}
+              onChange={onAssetPairChange}
               required
             >
               <option value="">Select Asset Name...</option>
               {assetNames.map((pair) => {
                 const [name] = (pair || "").split(":");
-                return <option key={pair} value={pair}>{name}</option>;
+                return (
+                  <option key={pair} value={pair}>
+                    {name}
+                  </option>
+                );
               })}
             </select>
-          </div>
-          <div>
-            <label htmlFor="category" className="block text-sm mb-1">Category</label>
+          </Field>
+          <Field id="category" label="Category">
             <input
               id="category"
               type="text"
@@ -531,27 +509,27 @@ export default function AssetForm() {
               tabIndex={-1}
               aria-readonly="true"
             />
-          </div>
+          </Field>
         </div>
 
+        {/* Quantity (unchanged) */}
+        <div>
+          <Field id="quantity" label="Quantity">
+            <input
+              id="quantity"
+              type="number"
+              className="w-full border rounded px-3 py-2"
+              name="quantity"
+              min={1}
+              value={form.quantity}
+              onChange={onChange}
+              required
+            />
+          </Field>
+        </div>
 
-        {/* Quantity */}
+        {/* Link toggle (unchanged) */}
         <div className="mt-2">
-          <label htmlFor="quantity" className="block text-sm mb-1">Quantity</label>
-          <input
-            id="quantity"
-            type="number"
-            className="w-full border rounded px-3 py-2"
-            name="quantity"
-            min={1}
-            value={form.quantity}
-            onChange={onChange}
-            required
-          />
-        </div>
-
-        {/* Radio for asset link */}
-        <div className="mt-4">
           <label className="inline-flex items-center">
             <input
               type="radio"
@@ -572,39 +550,13 @@ export default function AssetForm() {
           </label>
         </div>
 
-        {/* Conditional fields when assetLink selected */}
+        {/* DETAILED FIELDS: changed to label+input blocks ONLY */}
         {assetLink && (
           <>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+            {/* Row 1 */}
+            <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
               <div>
-                <label htmlFor="location" className="block text-sm mb-1">Location</label>
-                <input
-                  id="location"
-                  className="w-full border rounded px-3 py-2"
-                  name="location"
-                  value={form.location}
-                  onChange={onChange}
-                  placeholder="Lab-101"
-                  required
-                />
-              </div>
-              <div>
-                <label htmlFor="assign_date" className="block text-sm mb-1">Assign Date</label>
-                <input
-                  id="assign_date"
-                  type="date"
-                  className="w-full border rounded px-3 py-2"
-                  name="assign_date"
-                  required
-                  value={form.assign_date}
-                  onChange={onChange}
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label htmlFor="status" className="block text-sm mb-1">Status</label>
+                <label htmlFor="status" className="block text-sm mb-1">Status *</label>
                 <select
                   id="status"
                   className="w-full border rounded px-3 py-2"
@@ -613,84 +565,64 @@ export default function AssetForm() {
                   onChange={onChange}
                   required
                 >
-                  <option value="" disabled>
-                    Select Status
-                  </option>
+                  <option value="" >Select Status</option>
                   {STATUS_OPTIONS.map((s) => (
-                    <option key={s} value={s}>
-                      {s}
-                    </option>
+                    <option key={s} value={s}>{s}</option>
                   ))}
                 </select>
               </div>
+
               <div>
-                <label htmlFor="desc" className="block text-sm mb-1">Description</label>
-                <textarea
-                  id="desc"
+                <label htmlFor="size_lxwxh" className="block text-sm mb-1">Design Specifications (LxWxH)</label>
+                <input
+                  id="size_lxwxh"
                   className="w-full border rounded px-3 py-2"
-                  name="desc"
-                  value={form.desc}
+                  name="size_lxwxh"
+                  value={form.size_lxwxh}
                   onChange={onChange}
-                  rows={3}
-                  placeholder="Model, specs, condition..."
+                  placeholder="e.g., 30x20x10 cm"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="company_model" className="block text-sm mb-1">Company / Model / Model No.</label>
+                <input
+                  id="company_model"
+                  className="w-full border rounded px-3 py-2"
+                  name="company_model"
+                  value={form.company_model}
+                  onChange={onChange}
+                  placeholder="e.g., Dell Latitude 5420"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="it_serial_no" className="block text-sm mb-1">Serial No. (IT Asset)</label>
+                <input
+                  id="it_serial_no"
+                  className="w-full border rounded px-3 py-2"
+                  name="it_serial_no"
+                  value={form.it_serial_no}
+                  onChange={onChange}
+                  placeholder="Device Serial Number"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="dead_stock_no" className="block text-sm mb-1">Dead Stock / Asset / Stock No.</label>
+                <input
+                  id="dead_stock_no"
+                  className="w-full border rounded px-3 py-2"
+                  name="dead_stock_no"
+                  value={form.dead_stock_no}
+                  onChange={onChange}
+                  placeholder="Inventory Ledger No."
                 />
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div>
-                <label htmlFor="assigned_type" className="block text-sm mb-1">Assigned Type</label>
-                <select
-                  id="assigned_type"
-                  className="w-full border rounded px-3 py-2"
-                  name="assigned_type"
-                  value={form.assigned_type}
-                  onChange={onChange}
-                  required
-                >
-                  <option value="" disabled>
-                    Select Assigned Type
-                  </option>
-                  {ASSIGNED_TYPE_OPTIONS.map((s) => (
-                    <option key={s} value={s}>
-                      {s}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className={`${form.assigned_type === "individual" ? "" : "opacity-60"}`}>
-                <label htmlFor="assigned_faculty_name" className="block text-sm mb-1">
-                  Assigned Faculty Name
-                </label>
-                <input
-                  id="assigned_faculty_name"
-                  className="w-full border rounded px-3 py-2"
-                  name="assigned_faculty_name"
-                  value={form.assigned_faculty_name}
-                  onChange={onChange}
-                  placeholder="Dr. A B"
-                  disabled={form.assigned_type !== "individual"}
-                  required={form.assigned_type === "individual"}
-                />
-              </div>
-
-              <div className={`${form.assigned_type === "individual" ? "" : "opacity-60"}`}>
-                <label htmlFor="employee_code" className="block text-sm mb-1">
-                  Employee Code
-                </label>
-                <input
-                  id="employee_code"
-                  className="w-full border rounded px-3 py-2"
-                  name="employee_code"
-                  value={form.employee_code || ""}
-                  onChange={onChange}
-                  placeholder="Employee Code"
-                  disabled={form.assigned_type !== "individual"}
-                  required={form.assigned_type === "individual"}
-                />
-              </div>
-
+            {/* Row 2 */}
+            <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
               <div>
                 <label htmlFor="bill_no" className="block text-sm mb-1">Bill No</label>
                 <input
@@ -702,33 +634,198 @@ export default function AssetForm() {
                   placeholder="Bill Number"
                 />
               </div>
+
+              <div>
+                <label htmlFor="vendor_name" className="block text-sm mb-1">Vendor Name</label>
+                <input
+                  id="vendor_name"
+                  className="w-full border rounded px-3 py-2"
+                  name="vendor_name"
+                  value={form.vendor_name}
+                  onChange={onChange}
+                  placeholder="Supplier / Seller"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="purchase_date" className="block text-sm mb-1">Date of Purchase *</label>
+                <input
+                  id="purchase_date"
+                  type="date"
+                  className="w-full border rounded px-3 py-2"
+                  name="purchase_date"
+                  value={form.purchase_date}
+                  onChange={onChange}
+                  placeholder="dd-mm-yyyy"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="rate_per_unit" className="block text-sm mb-1">Rate per Unit (Rs.)</label>
+                <input
+                  id="rate_per_unit"
+                  className="w-full border rounded px-3 py-2"
+                  name="rate_per_unit"
+                  value={form.rate_per_unit}
+                  onChange={onChange}
+                  placeholder="e.g., 12500.00"
+                  inputMode="decimal"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="po_no" className="block text-sm mb-1">Purchase Order (PO) No.</label>
+                <input
+                  id="po_no"
+                  className="w-full border rounded px-3 py-2"
+                  name="po_no"
+                  value={form.po_no}
+                  onChange={onChange}
+                  placeholder="PO Reference"
+                />
+              </div>
+            </div>
+
+            {/* Row 3 */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              <div>
+                <label htmlFor="room_no" className="block text-sm mb-1">Room No. / Location *</label>
+                <input
+                  id="room_no"
+                  className="w-full border rounded px-3 py-2"
+                  name="room_no"
+                  value={form.room_no}
+                  onChange={onChange}
+                  placeholder="Lab-101"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="building_name" className="block text-sm mb-1">Name of Building</label>
+                <input
+                  id="building_name"
+                  className="w-full border rounded px-3 py-2"
+                  name="building_name"
+                  value={form.building_name}
+                  onChange={onChange}
+                  placeholder="Main Academic Block"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="desc" className="block text-sm mb-1">Description</label>
+                <input
+                  id="desc"
+                  className="w-full border rounded px-3 py-2 h-10"
+                  name="desc"
+                  value={form.desc}
+                  onChange={onChange}
+                  rows={1}
+                  placeholder="Model, specs, condition..."
+                />
+              </div>
+            </div>
+
+            {/* Row 4 */}
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+              <div>
+                <label htmlFor="assigned_type" className="block text-sm mb-1">Assigned Type *</label>
+                <select
+                  id="assigned_type"
+                  className="w-full border rounded px-3 py-2"
+                  name="assigned_type"
+                  value={form.assigned_type}
+                  onChange={onChange}
+                  required
+                >
+                  <option value="" >Select Assigned Type</option>
+                  {ASSIGNED_TYPE_OPTIONS.map((s) => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label htmlFor="assigned_faculty_name" className="block text-sm mb-1">Assigned To (Employee Name)</label>
+                <input
+                  id="assigned_faculty_name"
+                  className={`w-full border rounded px-3 py-2 ${form.assigned_type !== "individual" ? "bg-gray-50" : ""}`}
+                  name="assigned_faculty_name"
+                  value={form.assigned_faculty_name}
+                  onChange={onChange}
+                  placeholder="Dr. A B"
+                  disabled={form.assigned_type !== "individual"}
+                  required={form.assigned_type === "individual"}
+                />
+              </div>
+
+              <div>
+                <label htmlFor="employee_code" className="block text-sm mb-1">Assigned To (Employee Code)</label>
+                <input
+                  id="employee_code"
+                  className={`w-full border rounded px-3 py-2 ${form.assigned_type !== "individual" ? "bg-gray-50" : ""}`}
+                  name="employee_code"
+                  value={form.employee_code}
+                  onChange={onChange}
+                  placeholder="Employee Code"
+                  disabled={form.assigned_type !== "individual"}
+                  required={form.assigned_type === "individual"}
+                />
+              </div>
+
+              <div>
+                <label htmlFor="assign_date" className="block text-sm mb-1">Assign Date *</label>
+                <input
+                  id="assign_date"
+                  type="date"
+                  className="w-full border rounded px-3 py-2"
+                  name="assign_date"
+                  value={form.assign_date}
+                  onChange={onChange}
+                  placeholder="dd-mm-yyyy"
+                />
+              </div>
+            </div>
+
+            {/* Row 5 */}
+            <div>
+              <label htmlFor="remarks" className="block text-sm mb-1">Remarks</label>
+              <textarea
+                id="remarks"
+                className="w-full border rounded px-3 py-2"
+                name="remarks"
+                value={form.remarks}
+                onChange={onChange}
+                rows={3}
+                placeholder="Any additional notes or remarks"
+              />
             </div>
           </>
         )}
 
-        {/* Report & QR checkboxes */}
-        <div className="flex items-center gap-3 mt-2">
+        {/* Report & QR */}
+        <div className="flex items-start gap-3 mt-2">
           <input
             type="checkbox"
             id="generateReport"
             name="generateReport"
             checked={generateReport}
             onChange={onChange}
-            className="mr-2"
+            className="mt-1"
           />
           <label htmlFor="generateReport" className="text-sm">
             If you want to generate a report for the recently added asset(s), check this box.
           </label>
         </div>
 
-        <div className="flex items-center gap-3 mt-2">
+        <div className="flex items-start gap-3 mt-2">
           <input
             type="checkbox"
             id="generateQrPdf"
             name="generateQrPdf"
             checked={generateQrPdf}
             onChange={onChange}
-            className="mr-2"
+            className="mt-1"
           />
           <label htmlFor="generateQrPdf" className="text-sm">
             If you want to generate a QR code PDF, click here.
@@ -755,7 +852,7 @@ export default function AssetForm() {
           <ul className="list-disc pl-5 space-y-1">
             {created.map((it) => (
               <li key={it._id ?? it.registration_number} className="font-mono text-sm">
-                {it.registration_number} — {it.asset_name} @ {it.location} [{it.status}]
+                {it.registration_number} — {it.asset_name} [{it.status}]
               </li>
             ))}
           </ul>
@@ -764,6 +861,7 @@ export default function AssetForm() {
     </div>
   );
 }
+
 
 
 

@@ -1,3 +1,4 @@
+// src/components/Scan.jsx
 import { useEffect, useRef, useState } from "react";
 import { Html5QrcodeScanner, Html5Qrcode } from "html5-qrcode";
 import { useNavigate } from "react-router-dom";
@@ -5,7 +6,7 @@ import * as XLSX from "xlsx";
 
 const API = "http://localhost:5000";
 
-const STATUS_OPTIONS = ["active", "inactive", "repair", "scrape", "damage"];
+const STATUS_OPTIONS = ["Active", "Inactive", "Repair", "Scrape", "Damage"];
 const ASSIGNED_TYPE_OPTIONS = ["general", "individual"];
 const REG_RE = /^[A-Za-z0-9_-]+\/\d{14}\/\d{5,15}$/;
 const BULK_RE = /^[A-Z]{2,20}\/[A-Z]{2,20}\/\d{14}\/\d{4}$/;
@@ -13,31 +14,59 @@ const BULK_RE = /^[A-Z]{2,20}\/[A-Z]{2,20}\/\d{14}\/\d{4}$/;
 export default function Scan() {
   const navigate = useNavigate();
 
-  const [mode, setMode] = useState(null);
+  const [mode, setMode] = useState(null); // "bulk" | "single" | null
   const [scannedText, setScannedText] = useState("");
   const [asset, setAsset] = useState(null);
   const [qrDoc, setQrDoc] = useState(null);
   const [statusMsg, setStatusMsg] = useState(null);
 
+  // Unified form aligned with AssetForm field list and alignment
   const [form, setForm] = useState({
+    // Top: organization + identity
+    institute: "",
+    department: "",
     asset_name: "",
     category: "",
-    location: "",
-    assign_date: "",
+
+    // Row 1 (AssetForm): core details
     status: "active",
+    size_lxwxh: "",
+    company_model: "",
+    it_serial_no: "",
+    dead_stock_no: "",
+
+    // Row 2 (AssetForm): procurement
+    bill_no: "",
+    vendor_name: "",
+    purchase_date: "",
+    rate_per_unit: "",
+    po_no: "",
+
+    // Row 3 (AssetForm): location + desc
+    room_no: "",
+    building_name: "",
     desc: "",
+
+    // Row 4 (AssetForm): assignment
+    assigned_type: "general",
+    assigned_faculty_name: "",
+    employee_code: "",
+    assign_date: "",
+
+    // Row 5 (AssetForm): remarks
+    remarks: "",
+
+    // Extra carried fields
+    location: "",
+
+    // Verification (kept at end)
     verification_date: "",
     verified: false,
     verified_by: "",
-    institute: "",
-    department: "",
-    assigned_type: "general",
-    assigned_faculty_name: "",
-    employee_code: "",    // Add this
-    bill_no: "", 
   });
 
   const needsFaculty = form.assigned_type === "individual";
+
   const scannerRef = useRef(null);
   const fileQrRef = useRef(null);
   const mountedRef = useRef(false);
@@ -51,7 +80,9 @@ export default function Scan() {
       const scanner = new Html5QrcodeScanner("qr-reader", config, false);
 
       const onSuccess = async (decodedText) => {
-        try { await scanner.clear(); } catch { }
+        try {
+          await scanner.clear();
+        } catch {}
         handleDecodedText(decodedText);
       };
 
@@ -66,14 +97,56 @@ export default function Scan() {
 
     return () => {
       (async () => {
-        try { await scannerRef.current?.clear(); } catch { }
+        try {
+          await scannerRef.current?.clear();
+        } catch {}
         try {
           if (fileQrRef.current?.isScanning) await fileQrRef.current.stop();
           await fileQrRef.current?.clear();
-        } catch { }
+        } catch {}
       })();
     };
   }, []);
+
+  // Map backend doc to the AssetForm sequence
+  const fillFormFromDoc = (doc) => {
+    const assignedType = (doc.assigned_type || "general").toLowerCase();
+    setForm({
+      institute: doc.institute || "",
+      department: doc.department || "",
+      asset_name: doc.asset_name || "",
+      category: doc.category || "",
+
+      status: doc.status || "active",
+      size_lxwxh: doc.size_lxwxh || "",
+      company_model: doc.company_model || "",
+      it_serial_no: doc.it_serial_no || "",
+      dead_stock_no: doc.dead_stock_no || "",
+
+      bill_no: doc.bill_no || "",
+      vendor_name: doc.vendor_name || "",
+      purchase_date: doc.purchase_date || "",
+      rate_per_unit: doc.rate_per_unit != null ? String(doc.rate_per_unit) : "",
+      po_no: doc.po_no || "",
+
+      room_no: doc.room_no || "",
+      building_name: doc.building_name || "",
+      desc: doc.desc || "",
+
+      assigned_type: assignedType,
+      assigned_faculty_name: assignedType === "individual" ? doc.assigned_faculty_name || "" : "",
+      employee_code: assignedType === "individual" ? doc.employee_code || "" : "",
+      assign_date: doc.assign_date || "",
+
+      remarks: doc.remarks || "",
+
+      location: doc.location || "",
+
+      verification_date: doc.verification_date || "",
+      verified: !!doc.verified,
+      verified_by: doc.verified_by || "",
+    });
+  };
 
   const handleDecodedText = async (text) => {
     setStatusMsg(null);
@@ -100,26 +173,11 @@ export default function Scan() {
           setMode("bulk");
           setQrDoc(qr);
           setScannedText(t);
-          setForm({
-            asset_name: qr.asset_name || "",
-            category: qr.category || "",
-            location: qr.location || "",
-            assign_date: qr.assign_date || "",
-            status: qr.status || "active",
-            desc: qr.desc || "",
-            verification_date: qr.verification_date || "",
-            verified: !!qr.verified,
-            verified_by: qr.verified_by || "",
-            institute: qr.institute || "",
-            department: qr.department || "",
-            assigned_type: qr.assigned_type || "general",
-            assigned_faculty_name:
-              (qr.assigned_type || "general") === "individual" ? (qr.assigned_faculty_name || "") : "",
-            employee_code: qr.employee_code || "",   // for bulk
-            bill_no: qr.bill_no || "",
-          });
+          fillFormFromDoc(qr);
           return;
         }
+        setStatusMsg({ ok: false, msg: "QR not found" });
+        return;
       } catch {
         setStatusMsg({ ok: false, msg: "Network error" });
         return;
@@ -145,24 +203,7 @@ export default function Scan() {
       const data = await res.json();
       setMode("single");
       setAsset(data);
-      setForm({
-        asset_name: data.asset_name || "",
-        category: data.category || "",
-        location: data.location || "",
-        assign_date: data.assign_date || "",
-        status: data.status || "active",
-        desc: data.desc || "",
-        verification_date: data.verification_date || "",
-        verified: !!data.verified,
-        verified_by: data.verified_by || "",
-        institute: data.institute || "",
-        department: data.department || "",
-        assigned_type: data.assigned_type || "general",
-        assigned_faculty_name:
-          (data.assigned_type || "general") === "individual" ? (data.assigned_faculty_name || "") : "",
-        employee_code: data.employee_code || "",   // for bulk
-        bill_no: data.bill_no || "",
-      });
+      fillFormFromDoc(data);
     } catch {
       setStatusMsg({ ok: false, msg: "Network error" });
     }
@@ -175,7 +216,9 @@ export default function Scan() {
     setQrDoc(null);
     setStatusMsg(null);
 
-    try { await scannerRef.current?.clear(); } catch { }
+    try {
+      await scannerRef.current?.clear();
+    } catch {}
 
     const el = document.getElementById("qr-reader");
     if (el) while (el.firstChild) el.removeChild(el.firstChild);
@@ -184,7 +227,9 @@ export default function Scan() {
     const scanner = new Html5QrcodeScanner("qr-reader", config, false);
     scanner.render(
       async (decodedText) => {
-        try { await scanner.clear(); } catch { }
+        try {
+          await scanner.clear();
+        } catch {}
         handleDecodedText(decodedText);
       },
       () => {}
@@ -211,14 +256,20 @@ export default function Scan() {
     const { name, value, type, checked } = e.target;
     setForm((f) => {
       if (name === "assigned_type") {
+        const nextType = value;
         return {
           ...f,
-          assigned_type: value,
-          assigned_faculty_name: value === "general" ? "" : f.assigned_faculty_name,
+          assigned_type: nextType,
+          assigned_faculty_name: nextType === "general" ? "" : f.assigned_faculty_name,
+          employee_code: nextType === "general" ? "" : f.employee_code,
         };
       }
       if (type === "checkbox" && name === "verified") {
         return { ...f, verified: !!checked };
+      }
+      if (name === "rate_per_unit") {
+        const onlyDigitsDot = value.replace(/[^\d.]/g, "");
+        return { ...f, rate_per_unit: onlyDigitsDot };
       }
       return { ...f, [name]: value };
     });
@@ -228,25 +279,51 @@ export default function Scan() {
     e.preventDefault();
     setStatusMsg(null);
 
-    if (mode === "bulk" && qrDoc?.qr_id) {
-      try {
-        const payload = {
-          asset_name: form.asset_name,
-          category: form.category,
-          location: form.location,
-          assign_date: form.assign_date,
-          status: form.status,
-          desc: form.desc,
-          verified: !!form.verified,
-          verified_by: form.verified_by,
-          institute: form.institute,
-          department: form.department,
-          assigned_type: form.assigned_type,
-          assigned_faculty_name: needsFaculty ? form.assigned_faculty_name : "",
-          employee_code: form.employee_code,  // Added here
-          bill_no: form.bill_no,  
-        };
+    const payload = {
+      // Top
+      institute: form.institute,
+      department: form.department,
+      asset_name: form.asset_name,
+      category: form.category,
 
+      // Row 1
+      status: form.status,
+      size_lxwxh: form.size_lxwxh,
+      company_model: form.company_model,
+      it_serial_no: form.it_serial_no,
+      dead_stock_no: form.dead_stock_no,
+
+      // Row 2
+      bill_no: form.bill_no,
+      vendor_name: form.vendor_name,
+      purchase_date: form.purchase_date,
+      rate_per_unit: form.rate_per_unit,
+      po_no: form.po_no,
+
+      // Row 3
+      room_no: form.room_no,
+      building_name: form.building_name,
+      desc: form.desc,
+
+      // Row 4
+      assigned_type: form.assigned_type,
+      assigned_faculty_name: needsFaculty ? form.assigned_faculty_name : "",
+      employee_code: needsFaculty ? form.employee_code : "",
+      assign_date: form.assign_date,
+
+      // Row 5
+      remarks: form.remarks,
+
+      // Extra carried fields
+      location: form.location,
+
+      // Verification (persisted in both modes)
+      verified: !!form.verified,
+      verified_by: form.verified_by,
+    };
+
+    try {
+      if (mode === "bulk" && qrDoc?.qr_id) {
         const res = await fetch(`${API}/api/qr/${encodeURIComponent(qrDoc.qr_id)}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
@@ -261,31 +338,7 @@ export default function Scan() {
           setQrDoc(data);
           setForm((f) => ({ ...f, verification_date: data.verification_date || f.verification_date }));
         }
-      } catch {
-        setStatusMsg({ ok: false, msg: "Network error" });
-      }
-      return;
-    }
-
-    if (mode === "single" && asset?._id) {
-      try {
-        const payload = {
-          asset_name: form.asset_name,
-          category: form.category,
-          location: form.location,
-          assign_date: form.assign_date,
-          status: form.status,
-          desc: form.desc,
-          institute: form.institute,
-          department: form.department,
-          assigned_type: form.assigned_type,
-          assigned_faculty_name: needsFaculty ? form.assigned_faculty_name : "",
-          verified: !!form.verified,
-          verified_by: form.verified_by,
-          employee_code: form.employee_code,  // Add this
-          bill_no: form.bill_no  
-        };
-
+      } else if (mode === "single" && asset?._id) {
         const res = await fetch(`${API}/api/assets/${asset._id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
@@ -300,91 +353,84 @@ export default function Scan() {
           setAsset((a) => a && { ...a, ...payload, verification_date: data.verification_date || a.verification_date });
           setForm((f) => ({ ...f, verification_date: data.verification_date || f.verification_date }));
         }
-      } catch {
-        setStatusMsg({ ok: false, msg: "Network error" });
-      }
-    }
-  };
-
-  // --- BULK IMPORT HANDLER ---
-  const handleImportExcel = (e) => {
-  const file = e.target.files?.[0];
-  if (!file) return;
-  setStatusMsg(null);
-
-  const reader = new FileReader();
-  reader.onload = async (evt) => {
-    try {
-      const wb = XLSX.read(evt.target.result, { type: "binary" });
-      const ws = wb.Sheets[wb.SheetNames[0]];
-      let rows = XLSX.utils.sheet_to_json(ws);
-
-      // Clean up BOM and whitespace
-      rows = rows.map(row => {
-        const out = {};
-        for (const k in row) {
-          const cleanKey = String(k).replace(/^\uFEFF/, '').trim();
-          let val = row[k];
-          if (typeof val === "string") val = val.replace(/^\uFEFF/, '').trim();
-          out[cleanKey] = val;
-        }
-        return out;
-      });
-
-      // Only allow rows with non-empty "verified_by"
-      const filteredRows = rows.filter(r => (r.verified_by || "").trim());
-
-      // Decide: bulk or single import
-      if (filteredRows.length) {
-        // Bulk if ALL serial_no start with a letter
-        const isBulk = filteredRows.every(
-          r => /^[A-Za-z]/.test(String(r.serial_no || ""))
-        );
-
-        if (isBulk) {
-          // Bulk update
-          const res = await fetch(`${API}/api/assets/bulk-update-by-serial`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            credentials: "include",
-            body: JSON.stringify(filteredRows),
-          });
-          const data = await res.json();
-          if (!res.ok) setStatusMsg({ ok: false, msg: data.error || "Bulk update failed" });
-          else setStatusMsg({ ok: true, msg: `Bulk update complete. Updated: ${data.updated?.length || 0}` });
-        } else {
-          // Single asset update: one request per row
-          let success = 0, failure = 0;
-          for (const row of filteredRows) {
-            if (/^\d+$/.test(String(row.serial_no || ""))) {
-              const res = await fetch(`${API}/api/assets/single-import`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                credentials: "include",
-                body: JSON.stringify(row),
-              });
-              if (res.ok) success++;
-              else failure++;
-            }
-          }
-          setStatusMsg({
-            ok: failure === 0,
-            msg: `Single asset update: Updated ${success}, failed ${failure}`,
-          });
-        }
       }
     } catch {
-      setStatusMsg({ ok: false, msg: "Bulk/single import failed" });
+      setStatusMsg({ ok: false, msg: "Network error" });
     }
   };
-  reader.readAsBinaryString(file);
-};
 
+  // --- BULK IMPORT HANDLER (unchanged content) ---
+  const handleImportExcel = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setStatusMsg(null);
+
+    const reader = new FileReader();
+    reader.onload = async (evt) => {
+      try {
+        const wb = XLSX.read(evt.target.result, { type: "binary" });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        let rows = XLSX.utils.sheet_to_json(ws);
+
+        rows = rows.map((row) => {
+          const out = {};
+          for (const k in row) {
+            const cleanKey = String(k).replace(/^\uFEFF/, "").trim();
+            let val = row[k];
+            if (typeof val === "string") val = val.replace(/^\uFEFF/, "").trim();
+            out[cleanKey] = val;
+          }
+          return out;
+        });
+
+        const filteredRows = rows.filter((r) => (r.verified_by || "").trim());
+
+        if (filteredRows.length) {
+          const isBulk = filteredRows.every((r) => /^[A-Za-z]/.test(String(r.serial_no || "")));
+
+          if (isBulk) {
+            const res = await fetch(`${API}/api/assets/bulk-update-by-serial}`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              credentials: "include",
+              body: JSON.stringify(filteredRows),
+            });
+            const data = await res.json();
+            if (!res.ok) setStatusMsg({ ok: false, msg: data.error || "Bulk update failed" });
+            else setStatusMsg({ ok: true, msg: `Bulk update complete. Updated: ${data.updated?.length || 0}` });
+          } else {
+            let success = 0,
+              failure = 0;
+            for (const row of filteredRows) {
+              if (/^\d+$/.test(String(row.serial_no || ""))) {
+                const res = await fetch(`${API}/api/assets/single-import`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  credentials: "include",
+                  body: JSON.stringify(row),
+                });
+                if (res.ok) success++;
+                else failure++;
+              }
+            }
+            setStatusMsg({
+              ok: failure === 0,
+              msg: `Single asset update: Updated ${success}, failed ${failure}`,
+            });
+          }
+        }
+      } catch {
+        setStatusMsg({ ok: false, msg: "Bulk/single import failed" });
+      }
+    };
+    reader.readAsBinaryString(file);
+  };
 
   return (
-    <div className="max-w-4xl mx-auto p-6 space-y-6">
+    <div className="max-w-6xl mx-auto p-6 space-y-6">
+      {/* Match AssetForm container width */}
       <div className="bg-white rounded shadow p-4">
-        <h2 className="text-lg font-semibold mb-3">Scan QR</h2>
+        <h2 className="text-xl font-semibold mb-3">Scan QR</h2>
         <div id="qr-reader" className="w-full max-w-md" />
         <div className="mt-3 flex items-center gap-3 flex-wrap">
           <span className="text-sm text-gray-600">Scanned: {scannedText || "-"}</span>
@@ -410,79 +456,26 @@ export default function Scan() {
 
       <div className="bg-white rounded shadow p-4">
         <h3 className="text-lg font-semibold mb-3">
-          {mode === "bulk" ? "Bulk QR Details (QR Registry)" :
-            mode === "single" ? "Asset Details" : "Details"}
+          {mode === "bulk" ? "Bulk QR Details (QR Registry)" : mode === "single" ? "Asset Details" : "Details"}
         </h3>
+
         {!(mode === "bulk" || mode === "single") ? (
           <p className="text-gray-600 text-sm">
-            Scan a QR code or upload an image; bulk QRs will load editable fields from the QR registry,
-            single-asset QRs will load the asset record.
+            Scan a QR code or upload an image; bulk QRs will load editable fields from the QR registry, single-asset
+            QRs will load the asset record.
           </p>
         ) : (
-          <form onSubmit={onSave} className="space-y-4">
+          <form onSubmit={onSave} className="space-y-6">
+            {/* Institute / Department */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm mb-1">Asset Name</label>
-                <input
-                  className="w-full border rounded px-3 py-2"
-                  name="asset_name"
-                  value={form.asset_name}
-                  onChange={onChange}
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm mb-1">Category</label>
-                <input
-                  className="w-full border rounded px-3 py-2"
-                  name="category"
-                  value={form.category}
-                  onChange={onChange}
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm mb-1">Location</label>
-                <input
-                  className="w-full border rounded px-3 py-2"
-                  name="location"
-                  value={form.location}
-                  onChange={onChange}
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm mb-1">Assign Date</label>
-                <input
-                  type="date"
-                  className="w-full border rounded px-3 py-2"
-                  name="assign_date"
-                  value={form.assign_date}
-                  onChange={onChange}
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm mb-1">Status</label>
-                <select
-                  className="w-full border rounded px-3 py-2"
-                  name="status"
-                  value={form.status}
-                  onChange={onChange}
-                  required
-                >
-                  {STATUS_OPTIONS.map((s) => (
-                    <option key={s} value={s}>{s}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
                 <label className="block text-sm mb-1">Institute</label>
-                <input
+                <input 
                   className="w-full border rounded px-3 py-2"
                   name="institute"
                   value={form.institute}
                   onChange={onChange}
+                  placeholder="Select Institute"
                 />
               </div>
               <div>
@@ -492,8 +485,201 @@ export default function Scan() {
                   name="department"
                   value={form.department}
                   onChange={onChange}
+                  placeholder="Select Department"
                 />
               </div>
+            </div>
+
+            {/* Asset Name / Category */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm mb-1">Asset Name</label>
+                <input
+                  className="w-full border rounded px-3 py-2"
+                  name="asset_name"
+                  value={form.asset_name}
+                  onChange={onChange}
+                  placeholder="Asset Name"
+                />
+              </div>
+              <div>
+                <label className="block text-sm mb-1">Category</label>
+                <input
+                  className="w-full border rounded px-3 py-2"
+                  name="category"
+                  value={form.category}
+                  onChange={onChange}
+                  placeholder="Category"
+                />
+              </div>
+            </div>
+
+            {/* Row 1: 1–5 */}
+            <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+              <div>
+                <label className="block text-sm mb-1">Status</label>
+                <select
+                  className="w-full border rounded px-3 py-2"
+                  name="status"
+                  value={form.status}
+                  onChange={onChange}
+                  required
+                >
+                  <option value="" >
+                    Select Status
+                  </option>
+                  {STATUS_OPTIONS.map((s) => (
+                    <option key={s} value={s}>
+                      {s}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm mb-1">Design Specifications (LxWxH)</label>
+                <input
+                  className="w-full border rounded px-3 py-2"
+                  name="size_lxwxh"
+                  value={form.size_lxwxh}
+                  onChange={onChange}
+                  placeholder="e.g., 30x20x10 cm"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm mb-1">Company / Model / Model No.</label>
+                <input
+                  className="w-full border rounded px-3 py-2"
+                  name="company_model"
+                  value={form.company_model}
+                  onChange={onChange}
+                  placeholder="e.g., Dell Latitude 5420"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm mb-1">Serial No. (IT Asset)</label>
+                <input
+                  className="w-full border rounded px-3 py-2"
+                  name="it_serial_no"
+                  value={form.it_serial_no}
+                  onChange={onChange}
+                  placeholder="Device Serial Number"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm mb-1">Dead Stock / Asset / Stock No.</label>
+                <input
+                  className="w-full border rounded px-3 py-2"
+                  name="dead_stock_no"
+                  value={form.dead_stock_no}
+                  onChange={onChange}
+                  placeholder="Inventory Ledger No."
+                />
+              </div>
+            </div>
+
+            {/* Row 2: 6–10 */}
+            <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+              <div>
+                <label className="block text-sm mb-1">Bill No.</label>
+                <input
+                  className="w-full border rounded px-3 py-2"
+                  name="bill_no"
+                  value={form.bill_no}
+                  onChange={onChange}
+                  placeholder="Bill Number"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm mb-1">Vendor Name</label>
+                <input
+                  className="w-full border rounded px-3 py-2"
+                  name="vendor_name"
+                  value={form.vendor_name}
+                  onChange={onChange}
+                  placeholder="Supplier / Seller"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm mb-1">Date of Purchase</label>
+                <input
+                  type="date"
+                  className="w-full border rounded px-3 py-2"
+                  name="purchase_date"
+                  value={form.purchase_date}
+                  onChange={onChange}
+                  placeholder="dd-mm-yyyy"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm mb-1">Rate per Unit (Rs.)</label>
+                <input
+                  className="w-full border rounded px-3 py-2"
+                  name="rate_per_unit"
+                  value={form.rate_per_unit}
+                  onChange={onChange}
+                  inputMode="decimal"
+                  placeholder="e.g., 12500.00"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm mb-1">Purchase Order (PO) No.</label>
+                <input
+                  className="w-full border rounded px-3 py-2"
+                  name="po_no"
+                  value={form.po_no}
+                  onChange={onChange}
+                  placeholder="PO Reference"
+                />
+              </div>
+            </div>
+
+            {/* Row 3: 11–12 + Description */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm mb-1">Room No. / Location (short)</label>
+                <input
+                  className="w-full border rounded px-3 py-2"
+                  name="room_no"
+                  value={form.room_no}
+                  onChange={onChange}
+                  placeholder="Lab-101"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm mb-1">Name of Building</label>
+                <input
+                  className="w-full border rounded px-3 py-2"
+                  name="building_name"
+                  value={form.building_name}
+                  onChange={onChange}
+                  placeholder="Main Academic Block"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm mb-1">Description</label>
+                <textarea
+                  className="w-full border rounded px-3 py-2 h-[42px] lg:h-auto"
+                  name="desc"
+                  value={form.desc}
+                  onChange={onChange}
+                  rows={1}
+                  placeholder="Model, specs, condition..."
+                />
+              </div>
+            </div>
+
+            {/* Row 4: 13–16 */}
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
               <div>
                 <label className="block text-sm mb-1">Assigned Type</label>
                 <select
@@ -503,74 +689,79 @@ export default function Scan() {
                   onChange={onChange}
                   required
                 >
+                  <option value="" >
+                    Select Assigned Type
+                  </option>
                   {ASSIGNED_TYPE_OPTIONS.map((t) => (
-                    <option key={t} value={t}>{t}</option>
+                    <option key={t} value={t}>
+                      {t}
+                    </option>
                   ))}
                 </select>
               </div>
-              <div className={`${needsFaculty ? "" : "opacity-60"}`}>
-                <label className="block text-sm mb-1">
-                  Assigned Faculty Name {needsFaculty ? "" : "(disabled)"}
-                </label>
+
+              <div>
+                <label className="block text-sm mb-1">Assigned To (Employee Name)</label>
                 <input
-                  className="w-full border rounded px-3 py-2"
+                  className={`w-full border rounded px-3 py-2 ${form.assigned_type !== "individual" ? "bg-gray-50" : ""}`}
                   name="assigned_faculty_name"
                   value={form.assigned_faculty_name}
                   onChange={onChange}
-                  disabled={!needsFaculty}
-                  required={needsFaculty}
+                  placeholder="Dr. A B"
+                  disabled={form.assigned_type !== "individual"}
+                  required={form.assigned_type === "individual"}
                 />
               </div>
 
-
-
               <div>
-                <label className="block text-sm mb-1">
-                  Employee Code {needsFaculty ? "" : "(disabled)"}
-                </label>
+                <label className="block text-sm mb-1">Assigned To (Employee Code)</label>
                 <input
-                  className="w-full border rounded px-3 py-2"
+                  className={`w-full border rounded px-3 py-2 ${form.assigned_type !== "individual" ? "bg-gray-50" : ""}`}
                   name="employee_code"
                   value={form.employee_code}
                   onChange={onChange}
-                  disabled={!needsFaculty}
-                  required={needsFaculty}
+                  placeholder="Employee Code"
+                  disabled={form.assigned_type !== "individual"}
+                  required={form.assigned_type === "individual"}
                 />
               </div>
+
               <div>
-                <label className="block text-sm mb-1">Bill No</label>
+                <label className="block text-sm mb-1">Assign Date</label>
                 <input
+                  type="date"
                   className="w-full border rounded px-3 py-2"
-                  name="bill_no"
-                  value={form.bill_no}
+                  name="assign_date"
+                  value={form.assign_date}
                   onChange={onChange}
+                  placeholder="dd-mm-yyyy"
                 />
               </div>
+            </div>
 
+            {/* Row 5: Remarks */}
+            <div>
+              <label className="block text-sm mb-1">Remarks</label>
+              <textarea
+                className="w-full border rounded px-3 py-2"
+                name="remarks"
+                value={form.remarks}
+                onChange={onChange}
+                rows={3}
+                placeholder="Any additional notes or remarks"
+              />
+            </div>
 
-
-
-              <div className="md:col-span-2">
-                <label className="block text-sm mb-1">Description</label>
-                <textarea
-                  className="w-full border rounded px-3 py-2"
-                  name="desc"
-                  value={form.desc}
-                  onChange={onChange}
-                  rows={3}
-                />
-              </div>
+            {/* Verification (kept at end, outside AssetForm rows) */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="inline-flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    name="verified"
-                    checked={!!form.verified}
-                    onChange={onChange}
-                    required
-                  />
+                  <input type="checkbox" name="verified" checked={!!form.verified} onChange={onChange} />
                   Verified
                 </label>
+                {form.verification_date ? (
+                  <p className="text-xs text-gray-500 mt-1">Last verification: {form.verification_date}</p>
+                ) : null}
               </div>
               <div>
                 <label className="block text-sm mb-1">Verified By</label>
@@ -579,20 +770,16 @@ export default function Scan() {
                   name="verified_by"
                   value={form.verified_by}
                   onChange={onChange}
-                  required
                 />
               </div>
             </div>
+
             <div className="text-sm text-gray-600">
-              {mode === "single"
-                ? <>Registration Number: {asset?.registration_number}</>
-                : <>QR ID: {qrDoc?.qr_id}</>}
+              {mode === "single" ? <>Registration Number: {asset?.registration_number}</> : <>QR ID: {qrDoc?.qr_id}</>}
             </div>
+
             <div className="flex gap-3">
-              <button
-                type="submit"
-                className="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700"
-              >
+              <button type="submit" className="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700">
                 Save Changes
               </button>
               <button
@@ -605,25 +792,20 @@ export default function Scan() {
             </div>
           </form>
         )}
-        {statusMsg && statusMsg.ok && (
-          <p className="mt-3 text-sm text-green-600">{statusMsg.msg}</p>
-        )}
+        {statusMsg && statusMsg.ok && <p className="mt-3 text-sm text-green-600">{statusMsg.msg}</p>}
       </div>
 
       {/* --- BULK IMPORT SECTION --- */}
       <div className="bg-white rounded shadow p-4">
         <h3 className="text-lg font-semibold mb-3">Asset Data Import</h3>
         <p className="text-sm text-gray-600 mb-2">
-          Import an Excel file to update one or multiple assets by serial number. The file must include a <b>serial_no</b> column and a <b>verified_by</b> column. Only rows with a filled <b>verified_by</b> will be updated.
+          Import an Excel file to update one or multiple assets by serial number. The file must include a <b>serial_no</b>{" "}
+          column and a <b>verified_by</b> column. Only rows with a filled <b>verified_by</b> will be updated.
         </p>
-        <input
-          type="file"
-          accept=".xlsx,.xls"
-          onChange={handleImportExcel}
-          className="mb-2"
-        />
+        <input type="file" accept=".xlsx,.xls" onChange={handleImportExcel} className="mb-2" />
         <p className="text-xs text-gray-500">
-          Example columns: serial_no, asset_name, category, location, assign_date, status, desc, institute, department, assigned_type, assigned_faculty_name, verified_by.
+          Example columns: serial_no, asset_name, category, location, assign_date, status, desc, institute, department,
+          assigned_type, assigned_faculty_name, verified_by.
         </p>
       </div>
     </div>
