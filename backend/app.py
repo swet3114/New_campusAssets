@@ -331,35 +331,70 @@ def next_asset_serial() -> int:
 def create_assets_bulk():
     data = request.get_json(silent=True) or {}
 
+    # Core
     asset_name = (data.get("asset_name") or "").strip()
     category = (data.get("category") or "").strip()
-    location = (data.get("location") or "").strip()
+
+    # Assignment/lifecycle
     assign_date = (data.get("assign_date") or "").strip()
     status = (data.get("status") or "").strip()
 
+    # Description and remarks (UI: Description -> desc)
     desc = (data.get("desc") or "").strip()
+    remarks = (data.get("remarks") or "").strip()
+
     verification_date = (data.get("verification_date") or "").strip()
     verified = bool(data.get("verified", False))
     verified_by = (data.get("verified_by") or "").strip()
 
+    # Org
     institute = (data.get("institute") or "").strip()
     department = (data.get("department") or "").strip()
+
+    # Assignment type
     assigned_type = (data.get("assigned_type") or "general").strip().lower()
     assigned_faculty_name = (data.get("assigned_faculty_name") or "").strip()
     employee_code = (data.get("employee_code") or "").strip()
+
+    # Procurement
     bill_no = (data.get("bill_no") or "").strip()
+    vendor_name = (data.get("vendor_name") or "").strip()
+    purchase_date = (data.get("purchase_date") or "").strip()
+    rate_per_unit_raw = (data.get("rate_per_unit") or "").strip()
+    po_no = (data.get("po_no") or "").strip()
 
+    # Physical/specs
+    size_lxwxh = (data.get("size_lxwxh") or "").strip()
+    company_model = (data.get("company_model") or "").strip()
+    it_serial_no = (data.get("it_serial_no") or "").strip()
+    dead_stock_no = (data.get("dead_stock_no") or "").strip()
 
+    # Location fields (kept compatibility: location optional text; primary short fields)
+    room_no = (data.get("room_no") or "").strip()
+    building_name = (data.get("building_name") or "").strip()
+    #location = (data.get("location") or "").strip()  # optional long field, may be empty in new UI
+
+    # Quantity
     try:
         quantity = int(data.get("quantity") or 1)
     except Exception:
         return jsonify({"error": "quantity must be an integer"}), 400
 
+    # Coerce rate_per_unit to numeric if possible (store as float), else keep string
+    rate_per_unit = None
+    if rate_per_unit_raw:
+        try:
+            rate_per_unit = float(rate_per_unit_raw.replace(",", ""))
+        except Exception:
+            # keep original text if parsing fails
+            rate_per_unit = rate_per_unit_raw
+
+    # Required checks
     missing = []
     if not asset_name: missing.append("asset_name")
     if not category: missing.append("category")
     if not institute: missing.append("institute")
-    #if not department: missing.append("department")
+    # department optional per previous behavior
     if assigned_type not in ("individual", "general"):
         return jsonify({"error": "assigned_type must be 'individual' or 'general'"}), 400
     if assigned_type == "individual" and not assigned_faculty_name:
@@ -374,9 +409,16 @@ def create_assets_bulk():
     if status and status not in allowed_status:
         return jsonify({"error": f"status must be one of {sorted(list(allowed_status))}"}), 400
 
+    # Date parsing leniency: keep raw if parse fails
     if assign_date:
         try:
             _ = datetime.strptime(assign_date, DATE_FMT_DATE)
+        except Exception:
+            pass
+
+    if purchase_date:
+        try:
+            _ = datetime.strptime(purchase_date, DATE_FMT_DATE)
         except Exception:
             pass
 
@@ -387,26 +429,57 @@ def create_assets_bulk():
     docs = []
     now_ts = int(time.time())
     for i in range(1, quantity + 1):
-        docs.append({
+        doc = {
             "serial_no": start_serial + (i - 1),
             "registration_number": reg_with_seq(prefix, i),
+
+            # Core
             "asset_name": asset_name,
             "category": category,
-            "location": location,
+
+            # Location
+            #"location": location,
+            "room_no": room_no,
+            "building_name": building_name,
+
+            # Assignment/lifecycle
             "assign_date": assign_date,
             "status": status,
+
+            # Details
             "desc": desc,
+            "remarks": remarks,
+
+            # Verification
             "verification_date": verification_date or "",
             "verified": bool(verified),
             "verified_by": verified_by,
+
+            # Org
             "institute": institute,
             "department": department,
+
+            # Assignment
             "assigned_type": assigned_type,
             "assigned_faculty_name": assigned_faculty_name if assigned_type == "individual" else "",
             "employee_code": employee_code if assigned_type == "individual" else "",
+
+            # Procurement
             "bill_no": bill_no,
+            "vendor_name": vendor_name,
+            "purchase_date": purchase_date,
+            "rate_per_unit": rate_per_unit,
+            "po_no": po_no,
+
+            # Physical/specs
+            "size_lxwxh": size_lxwxh,
+            "company_model": company_model,
+            "it_serial_no": it_serial_no,
+            "dead_stock_no": dead_stock_no,
+
             "created_at": now_ts,
-        })
+        }
+        docs.append(doc)
 
     try:
         res = assets.insert_many(docs, ordered=True)
@@ -435,29 +508,58 @@ def create_assets_bulk():
 
     return jsonify({"count": len(docs), "items": docs}), 201
 
+
 # Single asset create with serial_no
 @app.route("/api/assets", methods=["POST"])
 @require_role("Super_Admin", "Admin")
 def create_asset_single():
     data = request.get_json(silent=True) or {}
 
+    # Core
     asset_name = (data.get("asset_name") or "").strip()
     category = (data.get("category") or "").strip()
-    location = (data.get("location") or "").strip()
+
+    # Assignment/lifecycle
     assign_date = (data.get("assign_date") or "").strip()
     status = (data.get("status") or "").strip()
+
+    # Description and remarks
     desc = (data.get("desc") or "").strip()
+    remarks = (data.get("remarks") or "").strip()
+
+    # Verification
     verification_date = (data.get("verification_date") or "").strip()
     verified = bool(data.get("verified", False))
     verified_by = (data.get("verified_by") or "").strip()
+
+    # Org
     institute = (data.get("institute") or "").strip()
     department = (data.get("department") or "").strip()
+
+    # Assignment type
     assigned_type = (data.get("assigned_type") or "general").strip().lower()
     assigned_faculty_name = (data.get("assigned_faculty_name") or "").strip()
-    # --- NEW FIELDS ---
     employee_code = (data.get("employee_code") or "").strip()
-    bill_no = (data.get("bill_no") or "").strip()
 
+    # Procurement
+    bill_no = (data.get("bill_no") or "").strip()
+    vendor_name = (data.get("vendor_name") or "").strip()
+    purchase_date = (data.get("purchase_date") or "").strip()
+    rate_per_unit_raw = (data.get("rate_per_unit") or "").strip()
+    po_no = (data.get("po_no") or "").strip()
+
+    # Physical/specs
+    size_lxwxh = (data.get("size_lxwxh") or "").strip()
+    company_model = (data.get("company_model") or "").strip()
+    it_serial_no = (data.get("it_serial_no") or "").strip()
+    dead_stock_no = (data.get("dead_stock_no") or "").strip()
+
+    # Location
+    room_no = (data.get("room_no") or "").strip()
+    building_name = (data.get("building_name") or "").strip()
+    #location = (data.get("location") or "").strip()  # optional text
+
+    # Required checks
     missing = []
     if not asset_name: missing.append("asset_name")
     if not category: missing.append("category")
@@ -470,32 +572,77 @@ def create_asset_single():
     if missing:
         return jsonify({"error": f"Missing or empty field(s): {', '.join(missing)}"}), 400
 
+    # Dates: keep raw if parse fails
     if assign_date:
         try:
             _ = datetime.strptime(assign_date, DATE_FMT_DATE)
         except Exception:
             pass
 
+    if purchase_date:
+        try:
+            _ = datetime.strptime(purchase_date, DATE_FMT_DATE)
+        except Exception:
+            pass
+
+    # Coerce rate per unit to float when possible
+    rate_per_unit = None
+    if rate_per_unit_raw:
+        try:
+            rate_per_unit = float(rate_per_unit_raw.replace(",", ""))
+        except Exception:
+            rate_per_unit = rate_per_unit_raw
+
     prefix = reg_prefix_from_asset(asset_name)
     serial_no = next_asset_serial()
     doc = {
         "serial_no": serial_no,
         "registration_number": reg_with_seq(prefix, 1),
+
+        # Core
         "asset_name": asset_name,
         "category": category,
-        "location": location,
+
+        # Location
+        #"location": location,
+        "room_no": room_no,
+        "building_name": building_name,
+
+        # Assignment/lifecycle
         "assign_date": assign_date,
         "status": status,
+
+        # Details
         "desc": desc,
+        "remarks": remarks,
+
+        # Verification
         "verification_date": verification_date or "",
         "verified": bool(verified),
         "verified_by": verified_by,
+
+        # Org
         "institute": institute,
         "department": department,
+
+        # Assignment
         "assigned_type": assigned_type,
         "assigned_faculty_name": assigned_faculty_name if assigned_type == "individual" else "",
         "employee_code": employee_code if assigned_type == "individual" else "",
+
+        # Procurement
         "bill_no": bill_no,
+        "vendor_name": vendor_name,
+        "purchase_date": purchase_date,
+        "rate_per_unit": rate_per_unit,
+        "po_no": po_no,
+
+        # Physical/specs
+        "size_lxwxh": size_lxwxh,
+        "company_model": company_model,
+        "it_serial_no": it_serial_no,
+        "dead_stock_no": dead_stock_no,
+
         "created_at": int(time.time()),
     }
 
@@ -511,6 +658,7 @@ def create_asset_single():
     )
 
     return jsonify(doc), 201
+
 
 
 @app.route("/api/assets", methods=["GET"])
@@ -556,9 +704,24 @@ def update_asset(id):
 
     data = request.get_json(silent=True) or {}
     allowed = [
-        "asset_name", "category", "location", "assign_date", "status",
-        "desc", "verification_date", "verified", "verified_by", "institute", "department",
-        "assigned_type", "assigned_faculty_name","employee_code","bill_no"
+        # Core identity / org
+        "asset_name", "category", "institute", "department",
+        # Placement
+        #"location",
+        # Lifecycle
+        "assign_date", "status",
+        # Description + remarks
+        "desc", "remarks",
+        # Verification
+        "verification_date", "verified", "verified_by",
+        # Assignment
+        "assigned_type", "assigned_faculty_name", "employee_code",
+        # Procurement
+        "bill_no", "vendor_name", "purchase_date", "rate_per_unit", "po_no",
+        # Physical/specs
+        "size_lxwxh", "company_model", "it_serial_no", "dead_stock_no",
+        # Room/building
+        "room_no", "building_name",
     ]
     update = {}
     for f in allowed:
@@ -1730,9 +1893,6 @@ def reset_user_password(user_id):
         return jsonify({'success': True, 'message': 'Password updated successfully'})
     else:
         return jsonify({'success': False, 'error': 'User not found'}), 404
-
-
-
 
 
 
