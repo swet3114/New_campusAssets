@@ -1334,7 +1334,7 @@ def import_excel_single():
 # ==================== GRAPH ANALYTICS ENDPOINTS ====================
 
 @app.route('/api/assets/filter-options', methods=['GET'])
-@require_role("Super_Admin", "Admin", "Faculty", "Student")
+@require_role("Super_Admin", "Admin", "Faculty", "Verifier")
 def get_filter_options():
     """
     Get unique values for filter dropdowns
