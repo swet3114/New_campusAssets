@@ -58,7 +58,6 @@ function downloadExcel(rows, filenamePrefix = "assets_report") {
     // Location + description (Row 3)
     "room_no",
     "building_name",
-    "location",
     "desc",
 
     // Assignment (Row 4)
